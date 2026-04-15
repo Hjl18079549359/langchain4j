@@ -2,15 +2,24 @@ package com.gdxy.consultant.config;
 
 
 import com.gdxy.consultant.aiservice.ConsultantService;
+import dev.langchain4j.data.document.loader.ClassPathDocumentLoader;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.rag.content.retriever.ContentRetriever;
+import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.service.AiServices;
+import dev.langchain4j.store.embedding.EmbeddingStore;
+import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
+import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import dev.langchain4j.data.document.Document;
+import java.util.List;
 
 @Configuration
 public class CommonConfig {
@@ -51,6 +60,31 @@ public class CommonConfig {
             }
         };
         return chatMemoryProvider;
+
+    }
+    //        构建向量数据库操作对象
+    @Bean
+    public EmbeddingStore store(){//langchain4j-easy-rag这个依赖自动注入embeddingStore的对象，这个对象的名字不能重复，所有这里使用store
+//        1、加载文档进内存
+        List<Document> documents= ClassPathDocumentLoader.loadDocuments("content");
+//        2、构建向量数据库操作对象
+        InMemoryEmbeddingStore inMemoryEmbeddingStore=new InMemoryEmbeddingStore();
+//        3、构建一个EmbeddingStoreIngestor对象，完成文本数据切割，向量化，存储
+        EmbeddingStoreIngestor ingestor= EmbeddingStoreIngestor.builder()
+
+                .embeddingStore(inMemoryEmbeddingStore)
+                .build();
+        ingestor.ingest(documents);
+        return inMemoryEmbeddingStore;
+    }
+//    构建向量数据库检索对象
+    @Bean
+    public ContentRetriever  contentRetriever(EmbeddingStore  embeddingStore){
+        return EmbeddingStoreContentRetriever.builder()
+                .embeddingStore(embeddingStore)
+                .minScore(0.5)
+                .maxResults(3)
+                .build();
     }
 
 }
