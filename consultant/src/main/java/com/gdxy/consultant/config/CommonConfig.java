@@ -2,6 +2,7 @@ package com.gdxy.consultant.config;
 
 
 import com.gdxy.consultant.aiservice.ConsultantService;
+import dev.langchain4j.community.store.embedding.redis.RedisEmbeddingStore;
 import dev.langchain4j.data.document.DocumentSplitter;
 import dev.langchain4j.data.document.loader.ClassPathDocumentLoader;
 import dev.langchain4j.data.document.loader.FileSystemDocumentLoader;
@@ -34,6 +35,8 @@ public class CommonConfig {
     private ChatMemoryStore redisChatMemoryStore;
     @Autowired
     private EmbeddingModel  embeddingModel;
+    @Autowired
+    private RedisEmbeddingStore  redisEmbeddingStore;
 ////    方法一
 //    @Bean
 //    public ConsultantService consultantService(){
@@ -70,30 +73,31 @@ public class CommonConfig {
 
     }
     //        构建向量数据库操作对象
-    @Bean
+//    @Bean
     public EmbeddingStore store(){//langchain4j-easy-rag这个依赖自动注入embeddingStore的对象，这个对象的名字不能重复，所有这里使用store
 //        1、加载文档进内存
 //        List<Document> documents= ClassPathDocumentLoader.loadDocuments("content");
 //        List<Document> documents= FileSystemDocumentLoader.loadDocuments("E:\\code\\langchain4j\\consultant\\src\\main\\resources\\content");
         List<Document> documents= ClassPathDocumentLoader.loadDocuments("content",new ApachePdfBoxDocumentParser());
-//        2、构建向量数据库操作对象
-        InMemoryEmbeddingStore inMemoryEmbeddingStore=new InMemoryEmbeddingStore();
+//        2、构建向量数据库操作对象(操作的是内存版本的向量数据库)
+//        InMemoryEmbeddingStore inMemoryEmbeddingStore=new InMemoryEmbeddingStore();
 //        构建文档分割器
         DocumentSplitter splitter= DocumentSplitters.recursive(500,100);
 //        3、构建一个EmbeddingStoreIngestor对象，完成文本数据切割，向量化，存储
         EmbeddingStoreIngestor ingestor= EmbeddingStoreIngestor.builder()
-                .embeddingStore(inMemoryEmbeddingStore)
+//                .embeddingStore(inMemoryEmbeddingStore)
+                .embeddingStore(redisEmbeddingStore)
                 .documentSplitter(splitter)
                 .embeddingModel(embeddingModel)
                 .build();
         ingestor.ingest(documents);
-        return inMemoryEmbeddingStore;
+        return redisEmbeddingStore;
     }
 //    构建向量数据库检索对象
     @Bean
-    public ContentRetriever contentRetriever(EmbeddingStore  store){
+    public ContentRetriever contentRetriever(/*EmbeddingStore  store*/){
         return EmbeddingStoreContentRetriever.builder()
-                .embeddingStore(store)
+                .embeddingStore(redisEmbeddingStore)
                 .embeddingModel(embeddingModel)
                 .minScore(0.5)
                 .maxResults(3)
