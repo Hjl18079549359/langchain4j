@@ -2,7 +2,11 @@ package com.gdxy.consultant.config;
 
 
 import com.gdxy.consultant.aiservice.ConsultantService;
+import dev.langchain4j.data.document.DocumentSplitter;
 import dev.langchain4j.data.document.loader.ClassPathDocumentLoader;
+import dev.langchain4j.data.document.loader.FileSystemDocumentLoader;
+import dev.langchain4j.data.document.parser.apache.pdfbox.ApachePdfBoxDocumentParser;
+import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
@@ -66,22 +70,26 @@ public class CommonConfig {
     @Bean
     public EmbeddingStore store(){//langchain4j-easy-rag这个依赖自动注入embeddingStore的对象，这个对象的名字不能重复，所有这里使用store
 //        1、加载文档进内存
-        List<Document> documents= ClassPathDocumentLoader.loadDocuments("content");
+//        List<Document> documents= ClassPathDocumentLoader.loadDocuments("content");
+//        List<Document> documents= FileSystemDocumentLoader.loadDocuments("E:\\code\\langchain4j\\consultant\\src\\main\\resources\\content");
+        List<Document> documents= ClassPathDocumentLoader.loadDocuments("content",new ApachePdfBoxDocumentParser());
 //        2、构建向量数据库操作对象
         InMemoryEmbeddingStore inMemoryEmbeddingStore=new InMemoryEmbeddingStore();
+//        构建文档分割器
+        DocumentSplitter splitter= DocumentSplitters.recursive(500,100);
 //        3、构建一个EmbeddingStoreIngestor对象，完成文本数据切割，向量化，存储
         EmbeddingStoreIngestor ingestor= EmbeddingStoreIngestor.builder()
-
                 .embeddingStore(inMemoryEmbeddingStore)
+                .documentSplitter(splitter)
                 .build();
         ingestor.ingest(documents);
         return inMemoryEmbeddingStore;
     }
 //    构建向量数据库检索对象
     @Bean
-    public ContentRetriever  contentRetriever(EmbeddingStore  embeddingStore){
+    public ContentRetriever contentRetriever(EmbeddingStore  store){
         return EmbeddingStoreContentRetriever.builder()
-                .embeddingStore(embeddingStore)
+                .embeddingStore(store)
                 .minScore(0.5)
                 .maxResults(3)
                 .build();
